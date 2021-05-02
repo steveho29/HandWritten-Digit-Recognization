@@ -7,11 +7,8 @@ import numpy as np
 from io import BytesIO
 from PIL import Image, ImageFilter
 
-class MnistModel(nn.Module):
-    """
-    Custom CNN Model for Mnist
-    """
 
+class MnistModel(nn.Module):
     def __init__(self, classes: int) -> None:
         super(MnistModel, self).__init__()
 
@@ -45,7 +42,7 @@ class MnistModel(nn.Module):
 
         # initialize the layers in the softmax classifier layer set
         # (N, classes)
-        self.dense4 = nn.Linear(32, self.classes)
+        self.dense4 = nn.Linear(32, 10)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
 
@@ -74,6 +71,7 @@ class MnistModel(nn.Module):
         # build the softmax classifier
         x = nn.functional.log_softmax(self.dense4(x), dim=1)
         return x
+
 
 def show_image(loader: DataLoader):
     num_of_images = 64

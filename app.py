@@ -1,20 +1,5 @@
-import sys
-from PyQt5 import uic, QtWidgets, QtCore
-from PyQt5.QtWidgets import*
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-import torch, torchvision, numpy
-from torch import nn, optim
-from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
-import matplotlib.pyplot as plt
-import numpy as np
-from io import BytesIO
-from PIL import Image, ImageFilter
-# from Trainning import *
-
-model_path = 'convolutional_model.pt'
+from init import*
+MODEL_PATH = 'sequence_model.pt'
 
 
 class MnistModel(nn.Module):
@@ -51,14 +36,13 @@ class MnistModel(nn.Module):
 
         # initialize the layers in our fully-connected layer set
         # (N,128,3,3) -> (N,32)
-        self.dense3 = nn.Linear(128*3*3, 32)
+        self.dense3 = nn.Linear(128 * 3 * 3, 32)
 
         # initialize the layers in the softmax classifier layer set
         # (N, classes)
         self.dense4 = nn.Linear(32, self.classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-
         # build the first (CONV => RELU) * 2 => POOL layer set
         x = self.conv1A(x)
         x = self.act(x)
@@ -86,7 +70,22 @@ class MnistModel(nn.Module):
         return x
 
 
-def test_and_show_image(model_path, img):
+def classify(img, ps):
+    ps = ps.data.numpy().squeeze()
+    fig, (ax1, ax2) = plt.subplots(figsize=(6, 9), ncols=2)
+    ax1.imshow(img.resize_(1, 28, 28).numpy().squeeze())
+    ax1.axis('off')
+    ax2.barh(np.arange(10), ps)
+    ax2.set_aspect(0.1)
+    ax2.set_yticks(np.arange(10))
+    ax2.set_yticklabels(np.arange(10))
+    ax2.set_title('Class Probability')
+    ax2.set_xlim(0, 1.1)
+    plt.tight_layout()
+    plt.show()
+
+
+def test_and_show_image(img, model_path=MODEL_PATH):
     model = torch.load(model_path)
     # img = img.view(1, 784)
     with torch.no_grad():
@@ -95,20 +94,7 @@ def test_and_show_image(model_path, img):
     pb = torch.exp(logpb)
     probab = list(pb.numpy()[0])
     print("Predicted Digit =", probab.index(max(probab)))
-    # classify(img.view(1, 28, 28), pb)
-    return probab.index(max(probab)), max(probab)
-
-
-def test_and_show_image_linear(model_path, img):
-    model = torch.load(model_path)
-    img = img.view(1, 784)
-    with torch.no_grad():
-        logpb = model(img)
-    # Output of the network are log-probabilities, need to take exponential for probabilities
-    pb = torch.exp(logpb)
-    probab = list(pb.numpy()[0])
-    print("Predicted Digit =", probab.index(max(probab)))
-    # classify(img.view(1, 28, 28), pb)
+    classify(img.view(1, 28, 28), pb)
     return probab.index(max(probab)), max(probab)
 
 
@@ -133,7 +119,8 @@ class Draw(QWidget):
     def paintEvent(self, event):
         p = QPainter(self.pix)
         p.setPen(QPen(Qt.white, 10))
-        p.drawLine(self.lastPoint, self.endPoint)  # Draw a straight line according to the two positions before and after the mouse pointer
+        p.drawLine(self.lastPoint,
+                   self.endPoint)  # Draw a straight line according to the two positions before and after the mouse pointer
         self.lastPoint = self.endPoint  # Make the previous coordinate value equal to the next coordinate value to draw a continuous line
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self.pix)
@@ -143,13 +130,13 @@ class Draw(QWidget):
             self.lastPoint = event.pos()
             self.endPoint = self.lastPoint
 
-    #This function is triggered when the left mouse button moves
+    # This function is triggered when the left mouse button moves
     def mouseMoveEvent(self, event):
         if event.buttons() and Qt.LeftButton:
             self.endPoint = event.pos()
-            self.update()#Call paintEvent function, repaint
+            self.update()  # Call paintEvent function, repaint
 
-    #This function is triggered when the left mouse button is released
+    # This function is triggered when the left mouse button is released
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.endPoint = event.pos()
@@ -157,24 +144,29 @@ class Draw(QWidget):
         file = QFile('image.png')
         file.open(QIODevice.WriteOnly)
         self.pix.save(file, "PNG")
-        p = transforms.Compose([transforms.Resize((28, 28)), transforms.Normalize((0.5,), (0.5,))])
+        p = transforms.Compose(
+            [])
 
         image_fp = open('image.png', "rb")
         img = Image.open(image_fp).convert('L')
-        # img.convert('L')
+
+        # img = transforms.Resize((24, 24))(img)
+        img = transforms.Resize((26, 26))(img)
+        # img = transforms.Resize((20, 20))(img)
+
         img = transforms.ToTensor()(img)
-        img = p(img)
-        # img = img.unsqueeze(0)
-        # img = torchvision.transforms.F.pad(img, (4,4,4,4), 0, 'constant')
-        print(img.shape)
-        # transforms.Normalize(img, (0.5,), (0.5,))
-        # print(img)
+        img = F.pad(img, [1, 1, 1, 1], 'constant', 0)
+        img = transforms.Normalize((0.5,), (0.5,))(img)
+        img = img.unsqueeze(0)
+
+
         torchvision.utils.save_image(img, 'haha.png')
 
         # print(model.forward(img))
-        predict_number, prob = test_and_show_image_linear('model.pt', img)
+        predict_number, prob = test_and_show_image(img)
         self.window.label.setText(str(predict_number))
         self.window.lineEdit.setText(str(prob))
+
 
 class Main(QMainWindow):
     def __init__(self, *args, **kwargs):
@@ -189,7 +181,6 @@ class Main(QMainWindow):
         self.draw.lastPoint = QPoint(-10, -10)
         self.draw.endPoint = QPoint(-10, -10)
         self.draw.update()
-
 
 
 if __name__ == "__main__":

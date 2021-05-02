@@ -94,7 +94,7 @@ def test():
         100. * correct / len(test_set)))
 
 
-# test()
+test()
 # for epoch in range(1, n_epochs + 1):
 #     train(epoch)
 #     test()
@@ -128,4 +128,4 @@ def accuracy():
     print("Number Of Images Tested =", all_count)
     print("\nModel Accuracy =", (correct_count / all_count))
 
-accuracy()
+# accuracy()
