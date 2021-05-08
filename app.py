@@ -1,12 +1,7 @@
 from init import*
-MODEL_PATH = 'sequence_model.pt'
-
+MODEL_PATH = 'convolutional_model.pt'
 
 class MnistModel(nn.Module):
-    """
-    Custom CNN Model for Mnist
-    """
-
     def __init__(self, classes: int) -> None:
         super(MnistModel, self).__init__()
 
@@ -36,13 +31,14 @@ class MnistModel(nn.Module):
 
         # initialize the layers in our fully-connected layer set
         # (N,128,3,3) -> (N,32)
-        self.dense3 = nn.Linear(128 * 3 * 3, 32)
+        self.dense3 = nn.Linear(128*3*3, 32)
 
         # initialize the layers in the softmax classifier layer set
         # (N, classes)
-        self.dense4 = nn.Linear(32, self.classes)
+        self.dense4 = nn.Linear(32, 10)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+
         # build the first (CONV => RELU) * 2 => POOL layer set
         x = self.conv1A(x)
         x = self.act(x)
@@ -68,7 +64,6 @@ class MnistModel(nn.Module):
         # build the softmax classifier
         x = nn.functional.log_softmax(self.dense4(x), dim=1)
         return x
-
 
 def classify(img, ps):
     ps = ps.data.numpy().squeeze()
@@ -97,6 +92,36 @@ def test_and_show_image(img, model_path=MODEL_PATH):
     classify(img.view(1, 28, 28), pb)
     return probab.index(max(probab)), max(probab)
 
+def detect_digit(idx):
+
+
+    # CV2 detect
+    cv_img = cv2.imread('image.png')
+    gray = cv2.cvtColor(cv_img, cv2.COLOR_BGR2GRAY)
+    # thresh = cv2.threshold(gray, 0, 255,
+    #                        cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+    cnts = cv2.findContours(gray, cv2.RETR_EXTERNAL,
+                            cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+
+    digitCnts = []
+    for c in cnts:
+        (x, y, w, h) = cv2.boundingRect(c)
+
+        if w >= 20 and h >= 20:
+            digitCnts.append(c)
+
+    output = cv_img.copy()
+    digit = np.full((280, 280, 3), 0)
+
+    for cnt in digitCnts:
+        (x, y, w, h) = cv2.boundingRect(cnt)
+        cv2.rectangle(cv_img, (x, y), (x + w, y + h), (255, 0, 0), 3)
+        digit[:, x:x + w] = output[:, x:x + w]
+
+        cv2.imwrite(('digit' + str(idx)) + '.png', digit)
+
+    cv2.imshow("Output", cv_img)
 
 class Draw(QWidget):
     def __init__(self, window):
@@ -106,6 +131,8 @@ class Draw(QWidget):
         self.lastPoint = QPoint(-10, -10)
         self.endPoint = QPoint(-10, -10)
         self.window = window
+        self.idx = 0
+        self.prevX = 0
         self.initUI()
 
     def initUI(self):
@@ -150,13 +177,19 @@ class Draw(QWidget):
         image_fp = open('image.png', "rb")
         img = Image.open(image_fp).convert('L')
 
+        detect_digit(self.idx)
+        self.idx += 1
+        # image_fp = open(r'C:\Users\Kobe\Desktop\OpenCV_3_License_Plate_Recognition_Python-master\OpenCV_3_License_Plate_Recognition_Python-master\Digit/4.png', "rb")
+
+
         # img = transforms.Resize((24, 24))(img)
         img = transforms.Resize((26, 26))(img)
         # img = transforms.Resize((20, 20))(img)
 
         img = transforms.ToTensor()(img)
         img = F.pad(img, [1, 1, 1, 1], 'constant', 0)
-        img = transforms.Normalize((0.5,), (0.5,))(img)
+        # img = F.pad(img, [4, 4, 4, 4], 'constant', 0)
+        img = transforms.Normalize((0.3,), (0.3,))(img)
         img = img.unsqueeze(0)
 
 
@@ -181,6 +214,8 @@ class Main(QMainWindow):
         self.draw.lastPoint = QPoint(-10, -10)
         self.draw.endPoint = QPoint(-10, -10)
         self.draw.update()
+        self.draw.idx = 0
+        self.draw.prevX = 0
 
 
 if __name__ == "__main__":

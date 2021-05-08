@@ -19,4 +19,5 @@ import matplotlib.pyplot as plt
 import numpy as np
 from io import BytesIO
 from PIL import Image, ImageFilter
+import cv2, imutils
 
